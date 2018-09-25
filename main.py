@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*
 
-# works for iOS 10.2
+# works for iOS 10.2 on windows 10
 
 import sqlite3
 from hashlib import sha1
@@ -11,15 +11,19 @@ def FormatDate(dt, in_type):
     if in_type=='YYYYMMDD':
         return dt[4:6] + '/' + dt[6:8] + '/' + dt[0:4]
 
+# path to iphone backup directory
 BACKUP_PATH = 'C:/Users/Noah/AppData/Roaming/Apple Computer/MobileSync/Backup/3abca6c8b1917981e5c1d8407896df036573f510'
-DST_PATH = 'C:/Users/Noah/Documents/Lauren/iOSBackup/iMessageBackup'
 
-conn = sqlite3.connect('sqlite/2018-09-21/3d/3d0d7e5fb2ce288813306e4d4636395e047a3d28')
+# path to destination directory (where to save the _export.html, attachments, etc)
+DST_PATH = 'C:/GitHub/nprezant/iMessageBackup'
+
+conn = sqlite3.connect(BACKUP_PATH + '3d/3d0d7e5fb2ce288813306e4d4636395e047a3d28')
 
 c = conn.cursor()
 
 # (contact phone number, contact email)
 contact_info = ('%1234567890%', '%contactname@gmail.com%')
+
 c.execute("""SELECT 
 m.rowid as RowID,
 h.id AS UniqueID, 
@@ -52,7 +56,7 @@ with open(DST_PATH + '/' + '_export.html', encoding='utf-8', mode='w') as f:
     # print header
     f.write("""<!DOCTYPE html><head><meta charset="utf-8" />
     <link rel="shortcut icon" href="img/like.png"/>
-    <title>Lauren&Noah -- Archives</title>
+    <title>MESSAGE -- Archives</title>
     <style type="text/css">
     *{margin: 0;padding: 0; font:normal 12px "Lucida Grande", "Lucida Sans Unicode", "Arial";color:#333;}
     body{ background: #eee}
@@ -92,11 +96,12 @@ with open(DST_PATH + '/' + '_export.html', encoding='utf-8', mode='w') as f:
     f.write("""<body>
     <div class='wrap'>
     <div class='cont'>
-    <h1>Lauren Zitney <span style='float:right;font-size:20px;'>Noah Prezant</span></h1>
+    <h1>CONTACT <span style='float:right;font-size:20px;'>Noah Prezant</span></h1>
     <p class='imessage'>iMessage</p>""")
 
     all_records = c.fetchall()
     num_records = len(all_records)
+    conn.close()
 
     print('Writing messages to file...')
 
@@ -196,5 +201,3 @@ with open(DST_PATH + '/' + '_export.html', encoding='utf-8', mode='w') as f:
     f.write("""</div>
     </div>
     </body></html>""")
-
-conn.close()

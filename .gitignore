@@ -262,6 +262,9 @@ __pycache__/
 
 # NOAH SECTION
 
+# ignore folder
+ignore/
+
 # Attachment folder
 attachments/
 
@@ -273,3 +276,7 @@ _export.html
 
 # powerpoint notes
 *.pptx
+
+# visual studio files
+*.sln
+*.pyproj
