@@ -1,0 +1,108 @@
+<!--template:intro-start-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>iMessage Backup</title>
+    <link rel="shortcut icon" href="img/heart.png"/>
+    <link rel="stylesheet" href="messages.css">
+    <script type="text/javascript" src="messages.js"></script>
+<head>
+<body>
+
+<div class="border">
+  
+        <div class="chat-header">
+            <p class="title">
+                <span class="to">$to</span>
+                <span class="from">$from</span>
+            </p>
+            <p class="subtitle">iMessage Backup</p>
+            <p class="subtitle">Built 10/12/28</p>
+            <button onclick="toggle_viewpoint();">toggle stuff bro</button>
+        </div>
+        
+            <div class="messages">
+            <!--template:intro-end-->
+            
+                <!--template:text-myMessage-start-->
+                <div class="message myMessage">
+                    <p>$text</p>
+                    <date>
+                        <b>$name</b> $date $time
+                    </date>
+                </div>
+                <!--template:text-myMessage-end-->
+                
+                <!--template:text-fromThem-start-->
+                <div class="message fromThem">
+                    <p>$text</p>
+                    <date>
+                        <b>$name</b> $date $time
+                    </date>
+                </div>
+                <!--template:text-fromThem-end-->
+                
+                <!--template:media-myMessage-start-->
+                <div class="message myMessage">
+                    <img src="$media_path" alt="$media_path"/>
+                    <date>
+                        <b>$name</b> $date $time
+                    </date>
+                </div>
+                <!--template:media-myMessage-end-->
+                
+                <!--template:media-fromThem-start-->
+                <div class="message fromThem">
+                    <img src="$media_path" alt="$media_path"/>
+                    <date>
+                        <b>$name</b> $date $time
+                    </date>
+                </div>
+                <!--template:media-fromThem-end-->
+                
+                <div class="message fromThem">
+                    <p>It This one is just a lot more text so hopefully it induces some wrapping or something of note to see, not really sure what will happen but I hope that it is interesting regardless beautiful!</p>
+                    <date>
+                        <b>Kate</b>
+                        08.03.2017 14:30:7
+                    </date>
+                </div>
+                
+                <div class="message myMessage">
+                    <p>It looks beautiful!</p>
+                    <date>
+                        <b>Kate</b> 08.03.2017 14:30:7
+                    </date>
+                </div>
+                
+                <div class="message fromThem">
+                    <p>It looks beautiful!</p>
+                    <date>
+                        <b>Kate</b>
+                        08.03.2017 14:30:7
+                    </date>
+                </div>
+                
+                <div class="message myMessage">
+                    <p>This one is just a lot more text so hopefully it induces some wrapping or something of note to see, not really sure what will happen but I hope that it is interesting regardless looks beautiful!</p>
+                    <date>
+                        <b>Kate</b> 08.03.2017 14:30:7
+                    </date>
+                </div>
+                
+                <div class="message fromThem">
+                    <p>It looks beautiful!</p>
+                    <date>
+                        <b>Kate</b>
+                        08.03.2017 14:30:7
+                    </date>
+                </div>
+            <!--template:closer-start-->
+            </div>
+        
+        
+</div>
+
+</body>
+</html>
+<!--template:closer-end-->
