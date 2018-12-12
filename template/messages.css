@@ -251,4 +251,16 @@ body {
     border-radius: 1em;
 }
 
-
+button.viewpoint_toggle {
+    border: 2px solid #20a8fe;
+    padding-top: .25em;
+    padding-bottom: .25em;
+    border-radius: 0.5em;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    margin: 4px 2px;
+    cursor: pointer;
+    background-color: #e7e7e7;
+    color: black;
+}

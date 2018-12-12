@@ -15,31 +15,55 @@ def format_date(date, sep='.'):
 
 
 class iMessage:
-    def __init__(self, msg):
+    def __init__(self, msg, backup_dir, media_output_dir, me='me'):
         self.raw_message = msg
-        self.text = msg[6]
+        self.backup_dir = backup_dir
+        self.media_output_dir = media_output_dir
+
+        self.uniqueID = msg[1]
         self.time = msg[3]
         self.date = format_date(msg[4])
-        self.uniqueID = msg[1]
-
+        
         if msg[2] == 1:
             self.is_from_me = True
-            self.name = 'Me'
+            self.firstname = me
+            self.lastname = None
         else:
             self.is_from_me = False
-            self.name = self.uniqueID
+            if msg[8] is not None:
+                self.firstname = msg[8]
+            else:
+                self.firstname = self.uniqueID
 
-        if msg[7] is not None:
+            if msg[9] is not None:
+                self.lastname = msg[9]
+            else:
+                self.lastname = None
+
+        if (msg[7] is not None) and (not msg[7] == ''):
             self.has_attachment = True
-            self.attachment_src_path = self._get_attachment_source(msg[7])
-            self.attachment_filename = self._get_attachment_filename(msg[7])
+            self.attachment_src_path = self.backup_dir / self._get_attachment_source(msg[7])
+            self.attachment_filename = self.media_output_dir / self._get_attachment_filename(msg[7])
         else:
             self.has_attachment = False
             
         if msg[6] is not None:
             self.has_text = True
+            self.text = msg[6]
         else:
             self.has_text = False
+
+
+    def copy_attachment(self):
+        '''
+        copies the message attachment to the destination directory
+        :backup_dir: path to the iphone backup folder
+        '''
+        if self.has_attachment:
+            try:
+                copy2(self.attachment_src_path, self.attachment_filename)
+            except FileNotFoundError:
+                print(f'attachment file not found: {self.attachment_src_path}')
 
 
     def _get_attachment_filename(self, raw_path):
@@ -55,7 +79,7 @@ class iMessage:
         relative to the iphone backup directory
         '''
         ext = raw_path.split('.')[-1] # gets the file extension, e.g. PNG
-        if ext.lower() in ['jpg', 'png', 'mov', 'jpeg', 'gif']:
+        if (ext.lower() in ['jpg', 'png', 'mov', 'jpeg', 'gif']) or True:
             domainpath = 'MediaDomain-' + raw_path[2:] # create the domain path that will be hashed
             filename = sha1(domainpath.encode('utf-8')).hexdigest() # create the SHA1 hash (which is the file name)
             dir = filename[:2] # the first two digets of the filename are the directory name
@@ -66,66 +90,90 @@ class iMessage:
         
 
 class MessageBackupReader:
-    def __init__(self, iphone_backup_dir, query_file, contact_number, contact_email):
-        self.iphone_backup_dir = iphone_backup_dir
-        self.query_file = query_file
-        self.contact_info = (contact_number, contact_email)
-
-    
-    def fetch_all(self):
-        '''
-        fetches all messages from the iphone backup directory
-        using the supplied query file
-        '''
-        return self._fetch_all_messages(self.iphone_backup_dir, self.contact_info)
+    def __init__(self, iphone_backup_dir):
+        self._message_db_file = str(iphone_backup_dir / '3d' / '3d0d7e5fb2ce288813306e4d4636395e047a3d28')
+        self._contacts_db_file = str(iphone_backup_dir / '31' / '31bb7ba8914766d4ba40d6dfb6113c8b614be442')
 
 
-    def _fetch_all_messages(self, iphone_backup_folder, contact_info):
+    def fetch_by_contact_name(self, firstname, lastname, get_all:bool=False):
         '''
-        opens up the sqlite files and reads all messages
-        :param iphone_backup_folder: path to the iphone backup folder
-                                     (does not include path to messages)
-        :param contact_info: tuple of contact info you wish to retrieve messages for
-        :return: iterable of all messages
+        fetches all the messages using just the first and last name of the contact
         '''
-    
-        connection_path = str(iphone_backup_folder / '3d/3d0d7e5fb2ce288813306e4d4636395e047a3d28')
+        query_exe_inputs = dict()
 
-        conn = sqlite3.connect(connection_path)
+        if firstname is None:
+            firstname_query = 'AND FirstName is null'
+        else:
+            firstname_query = 'AND FirstName LIKE :firstname'
+            query_exe_inputs['firstname']=firstname
+
+        if lastname is None:
+            lastname_query = 'AND LastName is null'
+        else:
+            lastname_query = 'AND LastName LIKE :lastname'
+            query_exe_inputs['lastname']=lastname
+
+        whereclause = firstname_query + ' ' + lastname_query
+
+        if get_all:
+            whereclause = ''
+            query_exe_inputs = dict()
+
+        conn = sqlite3.connect(self._message_db_file)
+        conn.execute(f'ATTACH DATABASE [{self._contacts_db_file}] AS contacts')
+
+        query = self._read('select_msg_from_name.sql')
+        query = Template(query).safe_substitute(dict(whereclause=whereclause))
 
         cursor = conn.cursor()
+        cursor.execute(query, query_exe_inputs)
+        messages = cursor.fetchall()
+        return messages
 
-        query = self._create_sql_query()
+    
+    def fetch_by_contact_info(self, *args):
+        '''
+        contact_number = '%8282832222%, contact_email='someone@example.com'
+        fetches all messages from the iphone backup directory
+        using the supplied query file
+        :return: iterable of all messages
+        '''
+        query_exe_inputs = tuple(args)
 
-        cursor.execute(query, contact_info)
+        for i in range(len(query_exe_inputs)):
+            if i == 0:
+                whereclause = 'AND UniqueID like ?'
+            else:
+                whereclause = whereclause + ' OR UniqueID like ?'
 
+        query = self._read('select_msg_from_name.sql')
+        query = Template(query).safe_substitute(dict(whereclause=whereclause))
+
+        conn = sqlite3.connect(self._message_db_file)
+        conn.execute(f'ATTACH DATABASE [{self._contacts_db_file}] AS contacts')
+
+        cursor = conn.cursor()
+        cursor.execute(query, query_exe_inputs)
         all_messages = cursor.fetchall()
-
-        return all_messages
+        return all_messages        
     
 
-    def _create_sql_query(self) -> str:
+    def _read(self, file) -> str:
         '''
-        reads the sql query
-        has the "?"s built into it -- that's not very flexible
+        reads the input file, return the text
         '''
-        with open(self.query_file, 'r') as f:
-            query = f.read()
-
-        return query
+        with open(file, 'r') as f:
+            output = f.read()
+        return output
 
 
 class DocumentWriter:
     def __init__(self,
                  output_file,
                  template_file,
-                 intro_inputs = dict(),
-                 closer_inputs = dict()
                  ):
         self.output = output_file
         self.template = template_file
-        self.intro_inputs = intro_inputs
-        self.closer_inputs = closer_inputs
 
 
     def _append_output(self, html):
@@ -145,7 +193,7 @@ class DocumentWriter:
             f.write(html)
 
 
-    def write_intro(self):
+    def write_intro(self, msg_to, msg_from):
         '''
         writes the intro html to the output file
 
@@ -154,15 +202,17 @@ class DocumentWriter:
         :header_inputs: string template substitiion will be used
                         to put some info in the headers
         '''
+        intro_inputs = dict(msg_to=msg_to, msg_from=msg_from)
+
         template = _get_document_section(self.template,
                                      'template:intro-start',
                                      'template:intro-end')
 
-        intro = Template(template).safe_substitute(self.intro_inputs)
+        intro = Template(template).safe_substitute(intro_inputs)
         self._write_output(intro)
 
 
-    def write_closer(self):
+    def write_end(self, closer_inputs=dict()):
         '''
         writes the closing html to the output file
         '''
@@ -170,7 +220,7 @@ class DocumentWriter:
                                      'template:closer-start',
                                      'template:closer-end')
 
-        closer = Template(template).safe_substitute(self.closer_inputs)
+        closer = Template(template).safe_substitute(closer_inputs)
         self._append_output(closer)
 
 
@@ -178,15 +228,21 @@ class DocumentWriter:
         '''
         writes a message to the main file
         '''
+        self._append_output(self.make_message_html(msg))
+
+
+    def make_message_html(self, msg:iMessage):
+        '''
+        makes the html for a given message
+        '''
+        html = ''
         if msg.has_attachment:
-            html = self._make_media_html(msg)
-            self._append_output(html)
-
+            media = self._make_media_html(msg)
+            html = html + media
         if msg.has_text:
-            html = self._make_text_html(msg)
-            self._append_output(html)
-
-        # copy attachment if needed
+            text = self._make_text_html(msg)
+            html = html + text
+        return html
 
 
     def _make_text_html(self, message:iMessage) -> str:
@@ -208,7 +264,7 @@ class DocumentWriter:
                                             section_end)
 
         html = Template(template).safe_substitute(text = message.text,
-                                                name = message.name,
+                                                name = message.firstname,
                                                 date = message.date,
                                                 time = message.time)
         return html
@@ -232,8 +288,10 @@ class DocumentWriter:
                                             section_start,
                                             section_end)
 
-        html = Template(template).safe_substitute(media_path = message.attachment_filename,
-                                                name = message.name,
+        relative_media_path = message.attachment_filename.relative_to(self.output.parent)
+
+        html = Template(template).safe_substitute(media_path = str(relative_media_path),
+                                                name = message.firstname,
                                                 date = message.date,
                                                 time = message.time)
         return html
@@ -270,20 +328,29 @@ class iOSContacts:
     def __init__(self, iphone_backup_dir, query_file, firstname, lastname):
         self.iphone_backup_dir = iphone_backup_dir
         self.query_file = query_file
-
-        self.query_inputs = dict(first=firstname, last=lastname)
-
-        self._contacts_db_filename = Path('31', '31bb7ba8914766d4ba40d6dfb6113c8b614be442')
+        self._query_inputs = dict(first=firstname, last=lastname)
+        self._contacts_db_filename = str(iphone_backup_folder / '31' / '31bb7ba8914766d4ba40d6dfb6113c8b614be442')
 
 
-    def _make_query(self):
+    def _read(self, file):
         '''
-        reads the query from the query file
+        reads the text from the input file
         '''
-        with open(self.query_file, 'r') as f:
-            query = f.read()
+        with open(file, 'r') as f:
+            output = f.read()
+        return output
 
-        return query
+
+    def get_all_contacts(self):
+        '''
+        returns an iterable of all contacts in the iphone backup
+        and the values associated with it
+        '''
+        conn = sqlite3.connect(self._contacts_db_filename)
+        cursor = conn.cursor()
+        cursor.execute('SELECT First, Last, value FROM ABMultiValue, ABPerson WHERE record_id = ROWID AND value is not null order by first')
+        entries = cursor.fetchall()
+        return entries
 
 
     def _query_contacts(self):
@@ -291,17 +358,9 @@ class iOSContacts:
         connects to the contacts database and generates all contacts
         :return: iterable of contacts
         '''
-    
-        connection_path = str(self.iphone_backup_folder / self._contacts_db_filename)
-
-        conn = sqlite3.connect(connection_path)
-
+        conn = sqlite3.connect(self._contacts_db_filename)
         cursor = conn.cursor()
-
         query = self._make_query()
-
-        cursor.execute(query, self.query_inputs)
-
+        cursor.execute(query, self._query_inputs)
         entries = cursor.fetchall()
-
         return entries
