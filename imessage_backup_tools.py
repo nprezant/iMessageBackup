@@ -140,6 +140,7 @@ class MessageBackupReader:
         '''
         query_exe_inputs = tuple(args)
 
+        whereclause = ""
         for i in range(len(query_exe_inputs)):
             if i == 0:
                 whereclause = 'AND UniqueID like ?'
@@ -329,7 +330,7 @@ class iOSContacts:
         self.iphone_backup_dir = iphone_backup_dir
         self.query_file = query_file
         self._query_inputs = dict(first=firstname, last=lastname)
-        self._contacts_db_filename = str(iphone_backup_folder / '31' / '31bb7ba8914766d4ba40d6dfb6113c8b614be442')
+        self._contacts_db_filename = str(iphone_backup_dir / '31' / '31bb7ba8914766d4ba40d6dfb6113c8b614be442')
 
 
     def _read(self, file):
@@ -349,18 +350,5 @@ class iOSContacts:
         conn = sqlite3.connect(self._contacts_db_filename)
         cursor = conn.cursor()
         cursor.execute('SELECT First, Last, value FROM ABMultiValue, ABPerson WHERE record_id = ROWID AND value is not null order by first')
-        entries = cursor.fetchall()
-        return entries
-
-
-    def _query_contacts(self):
-        '''
-        connects to the contacts database and generates all contacts
-        :return: iterable of contacts
-        '''
-        conn = sqlite3.connect(self._contacts_db_filename)
-        cursor = conn.cursor()
-        query = self._make_query()
-        cursor.execute(query, self._query_inputs)
         entries = cursor.fetchall()
         return entries

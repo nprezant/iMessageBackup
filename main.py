@@ -13,7 +13,8 @@ def main():
     '''
 
     # get inputs
-    iphone_backup_dir = Path('C:/Users/Noah/AppData/Roaming/Apple Computer/MobileSync/Backup/3abca6c8b1917981e5c1d8407896df036573f510')
+    me = '<MyContactName>'
+    iphone_backup_dir = Path('C:/Users/<USERNAME>/AppData/Roaming/Apple Computer/MobileSync/Backup/<GUID>')
     
     out_dir = Path().cwd() / 'export'
     out_file = out_dir / 'messages.html'
@@ -41,15 +42,12 @@ def main():
 
     # write messages
     writer = DocumentWriter(out_file, template_file)
-    writer.write_intro(msg_to='Mom', msg_from='Noah')
+    writer.write_intro(msg_to='Mom', msg_from=me)
 
     num_msgs = len(raw_messages)
 
-    messages = [object() for i in range(num_msgs)]
-
     print('creating message objects')
-    for i, raw_msg in enumerate(raw_messages):
-        messages[i] = iMessage(raw_msg, iphone_backup_dir, attachments_dir, me='Noah')
+    messages = [iMessage(msg, iphone_backup_dir, attachments_dir, me=me) for msg in raw_messages]
 
     print('writing message html')
     html = ''
