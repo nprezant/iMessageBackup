@@ -12,15 +12,25 @@ def main():
     fetch messages and write them to a file
     '''
 
-    # get inputs
-    me = '<MyContactName>'
+    # Get inputs
+
+    ## <<<<<<<<<<< MUST BE CHANGED >>>>>>>>>>>>
     iphone_backup_dir = Path('C:/Users/<USERNAME>/AppData/Roaming/Apple Computer/MobileSync/Backup/<GUID>')
-    
-    out_dir = Path().cwd() / 'export'
+
+    # `me` and `them` only used for HTML output, not for finding the contact
+    me = '<MyContactName>'
+    them = '<Them>' # other person or name of the group chat
+
+    # Number of messages that are written to at once
+    batch_size = 100
+    # Number of messages in each HTML document
+    document_length = 1000
+
+    out_dir = Path().cwd() / 'export_2'
     out_file = out_dir / 'messages.html'
     if not out_dir.is_dir(): out_dir.mkdir()
     
-    attachments_dir = Path().cwd() / 'export' / 'attachments'
+    attachments_dir = Path().cwd() / 'export_2' / 'attachments'
     if not attachments_dir.is_dir(): attachments_dir.mkdir()
 
     template_dir = Path().cwd() / 'template'
@@ -37,35 +47,44 @@ def main():
 
     # read messages
     reader = MessageBackupReader(iphone_backup_dir)
+
+
+    ## <<<<<<<<<<< MUST BE CHANGED >>>>>>>>>>>>
     raw_messages = reader.fetch_by_contact_name(firstname='Mom', lastname=None)
-    #raw_messages = reader.fetch_by_contact_info('%111111111%')
+    # raw_messages = reader.fetch_by_contact_info('%111111111%')
+    # raw_messages = reader.fetch_groupchat(name='chat123456789012345678')
 
     # write messages
     writer = DocumentWriter(out_file, template_file)
-    writer.write_intro(msg_to='Mom', msg_from=me)
+    writer.write_intro(msg_to=them, msg_from=me)
 
     num_msgs = len(raw_messages)
 
     print('creating message objects')
     messages = [iMessage(msg, iphone_backup_dir, attachments_dir, me=me) for msg in raw_messages]
+    print(f"{len(messages)} message{'s' if len(messages) != 1 else ''} found")
 
-    print('writing message html')
     html = ''
     for i, msg in enumerate(messages):
+        msg.copy_attachment()
+
         html = html + writer.make_message_html(msg)
-        if i%1000==0:
+
+        if i != 0 and i % batch_size == 0:
             print(f'making html for message {i}/{num_msgs}')
             writer._append_output(html)
             html = ''
+
+        if i != 0 and i % document_length == 0:
+            writer.write_end()
+
+            out_file = out_dir / f"messages {i // document_length}.html"
+            writer = DocumentWriter(out_file, template_file)
+            writer.write_intro(msg_to=them, msg_from=me)
+            print(f"Writing to new file {out_file}")
+            html = ''
+
     writer._append_output(html)
-
-    print('copying attachments')
-    for i, msg in enumerate(messages):
-        if i%1000==0:
-            print(f'copying attachment for message {i}/{num_msgs}')
-        msg.copy_attachment()
-
-
     writer.write_end()
 
 if __name__ == '__main__':
