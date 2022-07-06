@@ -3,6 +3,7 @@
 <html>
 <head>
     <title>iMessage Backup</title>
+    <meta charset="utf-8">
     <link rel="shortcut icon" href="img/heart.png"/>
     <link rel="stylesheet" href="messages.css">
     <script type="text/javascript" src="messages.js"></script>
@@ -59,6 +60,28 @@
                     </date>
                 </div>
                 <!--template:media-fromThem-end-->
+
+                <!--template:media-video-myMessage-start-->
+                <div class="message myMessage">
+                    <video controls>
+                        <source src="$media_path" type="$mime"/>
+                    </video>
+                    <date>
+                        <b>$name</b> $date $time
+                    </date>
+                </div>
+                <!--template:media-video-myMessage-end-->
+                
+                <!--template:media-video-fromThem-start-->
+                 <div class="message fromThem">
+                    <video controls>
+                        <source src="$media_path" type="$mime"/>
+                    </video>
+                    <date>
+                        <b>$name</b> $date $time
+                    </date>
+                </div>
+                <!--template:media-video-fromThem-end-->
                 
                 <div class="message fromThem">
                     <p>It This one is just a lot more text so hopefully it induces some wrapping or something of note to see, not really sure what will happen but I hope that it is interesting regardless beautiful!</p>

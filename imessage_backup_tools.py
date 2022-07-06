@@ -30,12 +30,12 @@ class iMessage:
             self.lastname = None
         else:
             self.is_from_me = False
-            if msg[8] is not None:
+            if len(msg) > 8 and msg[8] is not None:
                 self.firstname = msg[8]
             else:
                 self.firstname = self.uniqueID
 
-            if msg[9] is not None:
+            if len(msg) > 9 and msg[9] is not None:
                 self.lastname = msg[9]
             else:
                 self.lastname = None
@@ -58,10 +58,24 @@ class iMessage:
         '''
         copies the message attachment to the destination directory
         :backup_dir: path to the iphone backup folder
+        Will change `output_path` if the file already exists in the destination directory
         '''
         if self.has_attachment:
             try:
+                output_path = Path(self.attachment_filename)
+                original_path = output_path
+                count = 0
+                while output_path.exists():
+                    filename = original_path.parts[-1].split(".")
+                    new_filename = ".".join(filename[:-1]) + " (" + str(count) + ")." + filename[-1]
+                    output_path = original_path.with_name(new_filename)
+                    count += 1
+
+                if count != 0:
+                    print(f"attachment {self.attachment_filename} renamed to {output_path.resolve()}")
+                    self.attachment_filename = output_path.resolve()
                 copy2(self.attachment_src_path, self.attachment_filename)
+                return 
             except FileNotFoundError:
                 print(f'attachment file not found: {self.attachment_src_path}')
 
@@ -158,6 +172,28 @@ class MessageBackupReader:
         all_messages = cursor.fetchall()
         return all_messages        
     
+    def fetch_groupchat(self, name):
+        '''
+        cache_roomnames = 'chat123456789'
+        fetches all messages from the iphone backup directory
+        using the supplied query file
+        :return: iterable of all messages
+        '''
+        query_exe_inputs = dict()
+        query_exe_inputs['name'] = name
+
+        whereclause = "cache_roomnames = :name"
+        query = self._read('select_msg_from_roomname.sql')
+        query = Template(query).safe_substitute(dict(whereclause=whereclause))
+
+        conn = sqlite3.connect(self._message_db_file)
+        # conn.execute(f'ATTACH DATABASE [{self._contacts_db_file}] AS contacts')
+
+        cursor = conn.cursor()
+        cursor.execute(query, query_exe_inputs)
+        all_messages = cursor.fetchall()
+        return all_messages
+    
 
     def _read(self, file) -> str:
         '''
@@ -175,6 +211,11 @@ class DocumentWriter:
                  ):
         self.output = output_file
         self.template = template_file
+
+    video_mime = {
+        ".mov": "video/quicktime",
+        ".mp4": "video/mp4"
+    }
 
 
     def _append_output(self, html):
@@ -277,24 +318,31 @@ class DocumentWriter:
         :message: the message to insert
         :return: html string
         '''
-        if message.is_from_me:
-            section_start = 'template:media-myMessage-start'
-            section_end= 'template:media-myMessage-end'
-
-        else:
-            section_start = 'template:media-fromThem-start'
-            section_end= 'template:media-fromThem-end'
-
-        template = _get_document_section(self.template,
-                                            section_start,
-                                            section_end)
-
         relative_media_path = message.attachment_filename.relative_to(self.output.parent)
 
+        filetype = Path(relative_media_path).suffix.lower().strip()
+        mime = self.video_mime.get(filetype)
+
+        section = "template:media-"
+
+        if mime is not None:
+            section += "video-"
+        
+        section += "myMessage-" if message.is_from_me else "fromThem-"
+
+        section_start = section + "start"
+        section_end = section + "end"
+
+        template = _get_document_section(self.template,
+                                         section_start,
+                                         section_end)
+
+
         html = Template(template).safe_substitute(media_path = str(relative_media_path),
-                                                name = message.firstname,
-                                                date = message.date,
-                                                time = message.time)
+                                                  name = message.firstname,
+                                                  date = message.date,
+                                                  time = message.time,
+                                                  mime = mime)
         return html
 
 
